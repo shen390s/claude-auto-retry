@@ -144,6 +144,7 @@ claude-auto-retry version     # Print version
 | macOS | `brew` | Fully supported |
 | Arch Linux | `pacman` | Fully supported |
 | Alpine | `apk` | Fully supported |
+| NixOS / Nix | `nix-env` | Fully supported |
 
 ### Requirements
 
@@ -156,7 +157,7 @@ claude-auto-retry version     # Print version
 |-------|--------|
 | bash | Full (auto-install to `~/.bashrc`) |
 | zsh | Full (auto-install to `~/.zshrc`) |
-| fish | Manual setup (instructions printed on `install`) |
+| fish | Full (auto-install to `~/.config/fish/functions/`) |
 
 ## `--print` Mode
 
@@ -261,7 +262,6 @@ node --test --watch test/             # Watch mode
 ### Areas for Contribution
 
 - **New rate limit patterns** — If you see a Claude Code rate limit message that isn't detected, open an issue with the exact text.
-- **Fish shell support** — Auto-install for fish shell (currently manual).
 - **Windows support** — WSL works, but native Windows would need a different approach.
 - **Notification integration** — Desktop/Slack notification when rate limit detected or when Claude resumes.
 

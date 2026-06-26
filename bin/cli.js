@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
@@ -12,6 +12,8 @@ const __dirname = dirname(__filename);
 const SRC_DIR = join(__dirname, '..', 'src');
 const LAUNCHER_PATH = join(SRC_DIR, 'launcher.js');
 const WRAPPER_TEMPLATE = join(SRC_DIR, 'wrapper.sh');
+const FISH_WRAPPER_TEMPLATE = join(SRC_DIR, 'wrapper.fish');
+const FISH_FUNCTION_DIR = join(homedir(), '.config', 'fish', 'functions');
 
 export const MARKER_START = '# >>> claude-auto-retry >>>';
 export const MARKER_END = '# <<< claude-auto-retry <<<';
@@ -63,6 +65,26 @@ export async function removeWrapper(rcFile) {
   await writeFile(rcFile, content);
 }
 
+export async function installFishWrapper(launcherPath) {
+  await mkdir(FISH_FUNCTION_DIR, { recursive: true });
+  const template = await readFile(FISH_WRAPPER_TEMPLATE, 'utf-8');
+  const wrapper = template.replace(/__LAUNCHER_PATH__/g, launcherPath);
+  const dest = join(FISH_FUNCTION_DIR, 'claude.fish');
+  await writeFile(dest, wrapper);
+  return dest;
+}
+
+export async function removeFishWrapper() {
+  const dest = join(FISH_FUNCTION_DIR, 'claude.fish');
+  try {
+    const content = await readFile(dest, 'utf-8');
+    if (content.includes(MARKER_START)) {
+      const { unlink } = await import('node:fs/promises');
+      await unlink(dest);
+    }
+  } catch {}
+}
+
 // --- tmux install ---
 
 function detectOS() {
@@ -75,7 +97,10 @@ function detectOS() {
         || release.includes('ID_LIKE="rhel') || release.includes('ID_LIKE=rhel')) return 'rhel';
     if (release.includes('ID=arch') || release.includes('ID_LIKE=arch')) return 'arch';
     if (release.includes('ID=alpine')) return 'alpine';
+    if (release.includes('ID=nixos')) return 'nixos';
   } catch {}
+  // Detect nix-env even on non-NixOS systems
+  try { execFileSync('which', ['nix-env'], { encoding: 'utf-8' }); return 'nixos'; } catch {}
   return 'unknown';
 }
 
@@ -87,6 +112,7 @@ function installTmux() {
     arch: ['sudo', ['pacman', '-S', '--noconfirm', 'tmux']],
     alpine: ['sudo', ['apk', 'add', 'tmux']],
     macos: ['brew', ['install', 'tmux']],
+    nixos: ['nix-env', ['-iA', 'nixpkgs.tmux']],
   };
 
   const entry = cmds[os];
@@ -130,10 +156,12 @@ async function cmdInstall() {
 
   const shell = process.env.SHELL || '/bin/bash';
   if (shell.includes('fish')) {
-    console.error('\nFish shell detected. Automatic install not supported.');
-    console.error(`Add manually to ~/.config/fish/config.fish:`);
-    console.error(`  function claude; set -x CLAUDE_AUTO_RETRY_ACTIVE 1; node "${LAUNCHER_PATH}" $argv; set -e CLAUDE_AUTO_RETRY_ACTIVE; end`);
-    process.exit(1);
+    const dest = await installFishWrapper(LAUNCHER_PATH);
+    console.log(`Fish function installed to ${dest}`);
+    console.log(`\nInstalled! Launcher path: ${LAUNCHER_PATH}`);
+    console.log('\nOpen a new fish shell or run:\n  source ' + dest);
+    console.log('\nNote: If you switch Node versions (nvm), re-run: claude-auto-retry install');
+    return;
   }
 
   const rcFiles = [];
@@ -159,6 +187,7 @@ async function cmdUninstall() {
   const bashrc = join(homedir(), '.bashrc');
   const zshrc = join(homedir(), '.zshrc');
   for (const rc of [bashrc, zshrc]) { await removeWrapper(rc); }
+  await removeFishWrapper();
   console.log('Shell function removed. Restart your shell to complete.');
 }
 
