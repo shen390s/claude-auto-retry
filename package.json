@@ -30,5 +30,8 @@
     "src/",
     "LICENSE",
     "README.md"
-  ]
+  ],
+  "dependencies": {
+    "claude-auto-retry": "github:shen390s/claude-auto-retry"
+  }
 }

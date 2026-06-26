@@ -147,7 +147,7 @@ async function createTmuxSession(args) {
       if (v == null) continue;
       envArgs.push('-e', `${k}=${v}`);
     }
-    newSessionArgs = ['new-session', '-d', '-s', sessionName, ...envArgs, innerCmd];
+    newSessionArgs = ['new-session', '-d', '-s', sessionName, '-c', process.cwd(), ...envArgs, innerCmd];
   } else {
     // For tmux < 3.0: export critical env vars inline in the command
     const criticalVars = ['PATH', 'HOME', 'USER', 'SHELL', 'TERM', 'LANG',
@@ -158,7 +158,7 @@ async function createTmuxSession(args) {
       .map(k => `export ${k}=${shellEscape(process.env[k])}`)
       .join('; ');
     const fullCmd = exports ? `${exports}; ${innerCmd}` : innerCmd;
-    newSessionArgs = ['new-session', '-d', '-s', sessionName, fullCmd];
+    newSessionArgs = ['new-session', '-d', '-s', sessionName, '-c', process.cwd(), fullCmd];
   }
 
   try {
